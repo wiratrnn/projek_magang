@@ -1,23 +1,32 @@
 import streamlit as st
 import mysql.connector
 
-@st.cache_resource
-def get_connection():
+def connection():
     return mysql.connector.connect(
-        host='gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
-        user='3z6cRQ7E5WYFy8C.root',
-        password='SSDXhGgKq68XqT6N',
-        database='projek_magang',
-        port=4000)
+        host=st.secrets['host'],
+        user=st.secrets['user'],
+        password=st.secrets['password'],
+        database=st.secrets['database'],
+        port=st.secrets['port'])
 
-def get_cursor():
-    conn = get_connection()
+def fetch_one(query, params=None):
+    with connection() as conn:
+        with conn.cursor(dictionary=True) as cursor:
+            cursor.execute(query, params or ())
+            return cursor.fetchone()
 
-    # cek apakah koneksi masih hidup
-    try:
-        conn.ping(reconnect=True, attempts=3, delay=2)
-    except mysql.connector.Error:
-        st.cache_resource.clear()
-        conn = get_connection()
+def fetch_all(query, params=None):
+    with connection() as conn:
+        with conn.cursor(dictionary=True) as cursor:
+            cursor.execute(query, params or ())
+            return cursor.fetchall()
 
-    return conn.cursor(dictionary=True)
+def execute(query, params=None):
+    """
+    Untuk INSERT / UPDATE / DELETE
+    """
+    with connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query, params or ())
+            conn.commit()
+            return cursor.rowcount
