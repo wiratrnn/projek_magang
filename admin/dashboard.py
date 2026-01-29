@@ -4,6 +4,79 @@ from utils import fetch_all
 
 st.title("📊 Dashboard Manajer")
 jaspek = fetch_all("SELECT * FROM jaspek")
+jlh_karyawan = fetch_all("SELECT COUNT(*) AS jumlah FROM user WHERE status = 'aktif'")
+nilai_stats = fetch_all(
+    """
+    SELECT 
+        AVG(nilai) AS avg_nilai, 
+        MAX(nilai) AS max_nilai,
+        MIN(nilai) AS min_nilai
+    FROM appraisal
+    WHERE tahun_periode = 2025
+    """
+)
+
+def metric_card(title, value, icon, bg_color):
+    st.markdown(
+        f"""
+        <div style="
+            background-color:{bg_color};
+            padding:10px;
+            border-radius:12px;
+            color:white;
+            height:110px;
+            display:flex;
+            align-items:center;
+            justify-content:flex-start;
+        ">
+            <div style="font-size:48px; opacity:0.8;">
+                {icon}
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; height:110px; width:100%;">
+                <div style="font-size:19px;">{title}</div>
+                <div style="font-size:34px; font-weight:bold; align-self:flex-start;">{value}</div>
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    metric_card(
+        "Pegawai Aktif",
+        jlh_karyawan[0]['jumlah'],
+        "👥",
+        "#3B82F6"   # biru
+    )
+
+with col2:
+    metric_card(
+        "Rata-rata Nilai",
+        f"{nilai_stats[0]['avg_nilai']:.2f}",
+        "⭐",
+        "#0F9266"   # hijau
+    )
+
+with col3:
+    metric_card(
+        "Nilai Tertinggi",
+        nilai_stats[0]['max_nilai'],
+        "🏆",
+        "#F59E0B"   # kuning
+    )
+
+with col4:
+    metric_card(
+        "Nilai Terendah",
+        nilai_stats[0]['min_nilai'],
+        "🔻",
+        "#EF4444"   # merah
+    )
+
+
 
 st.markdown(
     """
@@ -62,4 +135,5 @@ for item in jaspek:
                             format="%d",
                             width="small"
                         )})
+
 
