@@ -2,6 +2,8 @@ import streamlit as st
 from utils import fetch_all
 st.title("👥 Manajemen Karyawan")
 
+st.session_state.pop("penilaian", None)
+
 data = fetch_all(
     """
     SELECT 
@@ -30,4 +32,5 @@ for row in data:
                 st.info(f"Update user ID {row['id_user']} masih dalam pengembangan")
         with col_info:
             if st.button("detail", key=f"info_{row['id_user']}"):
+
                 st.info(f"Info user ID {row['id_user']} masih dalam pengembangan")
