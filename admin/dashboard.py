@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from utils import fetch_all
 
+st.session_state.pop("penilaian", None)
+
 st.title("📊 Dashboard Manajer")
 jaspek = fetch_all("SELECT * FROM jaspek")
 jlh_karyawan = fetch_all("SELECT COUNT(*) AS jumlah FROM user WHERE status = 'aktif'")
@@ -135,5 +137,6 @@ for item in jaspek:
                             format="%d",
                             width="small"
                         )})
+
 
 
