@@ -57,11 +57,12 @@ if st.session_state.karyawan_id is not None:
             mutu = col_kerja1.number_input(f"**Mutu**", min_value=0, max_value=100, step=1, key="mutu")
             kuantitas = col_kerja2.number_input(f"**Kuantitas**", min_value=0, max_value=100, step=1, key="kuantitas")
         
-        if st.form_submit_button("🔢 hitung", width='content', type="primary"):
+        if st.form_submit_button("🔢 hitung", width='stretch', type="primary"):
             total = (ketepatan*0.15 + absensi*0.15 + 
                      motivasi*0.2 + komunikasi*0.2 +
                      pemahaman*0.15 + pengembangan*0.10 + teoritis*0.10 + 
                      mutu*0.15 + kuantitas*0.15)
             st.metric(label="Total Skor", value=f"{(total/135)*100:.2f}")
     
+
 
