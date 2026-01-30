@@ -118,7 +118,7 @@ for item in jaspek:
             "SELECT * FROM aspek WHERE id_jaspek = %s", (item['id_jaspek'],)
         )
         st.data_editor(pd.DataFrame(aspek, columns=["aspek", "detail_aspek", "bobot"]),
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True,
                     disabled=["aspek", "detail_aspek"],   # hanya bobot yang editable
                     column_config={
@@ -137,6 +137,7 @@ for item in jaspek:
                             format="%d",
                             width="small"
                         )})
+
 
 
 
