@@ -10,6 +10,7 @@ def initialize_login():
 
 sid = st.session_state.setdefault("sid", str(id(st.session_state)))
 login = initialize_login()
+st.write(sid)
 st.write(login)
 
 def login_page():
@@ -85,4 +86,5 @@ else:
     nav = st.navigation(menu)
 
 nav.run()
+
 
