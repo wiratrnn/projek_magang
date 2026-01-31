@@ -8,7 +8,7 @@ st.set_page_config(page_title="Aplikasi Penilaian", page_icon="logoBPS.png")
 def initialize_login():
     return {}
 
-sid = str(id(st.session_state))
+sid = st.session_state.setdefault("sid", str(id(st.session_state)))
 login = initialize_login()
 st.write(login)
 
@@ -60,8 +60,8 @@ def login_page():
         st.info("ℹ️ Hubungi pihak Operator untuk mereset password atau mendaftar.")
 
 def logout():
-    st.session_state.clear()
-    login[sid].clear()
+    login.pop(sid, None)
+    st.session_state.pop("sid", None)
     st.rerun()
 
 role = login.get(sid, {}).get("role")
@@ -85,3 +85,4 @@ else:
     nav = st.navigation(menu)
 
 nav.run()
+
