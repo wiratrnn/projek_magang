@@ -11,7 +11,7 @@ def initialize_login():
 sid = st.session_state.setdefault("sid", str(id(st.session_state)))
 login = initialize_login()
 
-st.write(st.context.cookies["ajs_anonymous_id"])
+st.write(st.context.cookies)
 st.write(sid)
 st.write(login)
 
@@ -88,6 +88,7 @@ else:
     nav = st.navigation(menu)
 
 nav.run()
+
 
 
 
