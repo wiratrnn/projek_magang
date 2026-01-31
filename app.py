@@ -8,12 +8,8 @@ st.set_page_config(page_title="Aplikasi Penilaian", page_icon="logoBPS.png")
 def initialize_login():
     return {}
 
-sid = st.session_state.setdefault("sid", str(id(st.session_state)))
+sid = st.context.headers["X-Streamlit-User"]
 login = initialize_login()
-
-st.write(st.context.headers)
-st.write(sid)
-st.write(login)
 
 def login_page():
     with st.container(border=True):
@@ -88,6 +84,7 @@ else:
     nav = st.navigation(menu)
 
 nav.run()
+
 
 
 
