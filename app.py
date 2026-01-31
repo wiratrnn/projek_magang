@@ -10,7 +10,9 @@ def initialize_login():
 
 sid = st.context.headers["X-Streamlit-User"]
 login = initialize_login()
-st.write(st.context.headers)
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
 def login_page():
     with st.container(border=True):
@@ -49,6 +51,7 @@ def login_page():
                                     "user_id": user["id_user"],
                                     "role": user["jabatan"],
                                 }
+                            st.session_state.logged_in = True
                             
                             time.sleep(1)
                             st.rerun()
@@ -79,12 +82,13 @@ elif role == "member":
         st.Page(logout, title="Logout"),
     ]
 
-if not login.get(sid, {}).get("logged_in"):
+if not st.session_state.logged_in :
     nav = st.navigation([st.Page(login_page, title="Login")])
 else:
     nav = st.navigation(menu)
 
 nav.run()
+
 
 
 
