@@ -10,6 +10,7 @@ def initialize_login():
 
 sid = st.context.headers["X-Streamlit-User"]
 login = initialize_login()
+st.write(st.context.headers)
 
 def login_page():
     with st.container(border=True):
@@ -84,6 +85,7 @@ else:
     nav = st.navigation(menu)
 
 nav.run()
+
 
 
 
