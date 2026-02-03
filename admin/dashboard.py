@@ -1,10 +1,8 @@
-from app import logout
 import streamlit as st
 import pandas as pd
 from utils import fetch_all
 
-st.button("Logout", on_click=logout)
-st.session_state.pop("penilaian", None)
+st.session_state.pop("user", None)
 st.title("📊 Dashboard Manajer")
 jaspek = fetch_all("SELECT * FROM jaspek")
 jlh_karyawan = fetch_all("SELECT COUNT(*) AS jumlah FROM user WHERE status = 'aktif'")
@@ -19,7 +17,7 @@ nilai_stats = fetch_all(
     """
 )
 
-def metric_card(title, value, icon, bg_color):
+def metric_card(title, value, icon="⭐", bg_color="#ffffff"):
     st.markdown(
         f"""
         <div style="
@@ -35,11 +33,10 @@ def metric_card(title, value, icon, bg_color):
             <div style="font-size:48px; opacity:0.8;">
                 {icon}
             </div>
-            <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; height:110px; width:100%;">
+            <div style="display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; height:110px; width:100%;">
                 <div style="font-size:19px;">{title}</div>
                 <div style="font-size:34px; font-weight:bold; align-self:flex-start;">{value}</div>
             </div>
-
         </div>
         """,
         unsafe_allow_html=True
@@ -50,7 +47,7 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
     metric_card(
         "Pegawai Aktif",
-        jlh_karyawan[0]['jumlah'],
+        f"{jlh_karyawan[0]['jumlah']} orang",
         "👥",
         "#3B82F6"   # biru
     )
