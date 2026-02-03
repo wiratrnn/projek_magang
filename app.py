@@ -65,7 +65,7 @@ def logout():
     col1, col2 = st.columns([1.8,9])
     with col1:
         if st.button("Batal", key="reject"):
-            st.stop()
+            st.rerun()
 
     with col2:
         if st.button("Ya, Keluar", type="primary", key='accept'):
@@ -99,3 +99,4 @@ else:
         ])
 
 nav.run()
+
