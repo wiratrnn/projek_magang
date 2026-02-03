@@ -1,9 +1,10 @@
+from app import logout
 import streamlit as st
 import pandas as pd
 from utils import fetch_all
 
+st.button("Logout", on_click=logout)
 st.session_state.pop("penilaian", None)
-
 st.title("📊 Dashboard Manajer")
 jaspek = fetch_all("SELECT * FROM jaspek")
 jlh_karyawan = fetch_all("SELECT COUNT(*) AS jumlah FROM user WHERE status = 'aktif'")
@@ -79,7 +80,6 @@ with col4:
     )
 
 
-
 st.markdown(
     """
     <h1 style="
@@ -120,7 +120,7 @@ for item in jaspek:
         st.data_editor(pd.DataFrame(aspek, columns=["aspek", "detail_aspek", "bobot"]),
                     width='stretch',
                     hide_index=True,
-                    disabled=["aspek", "detail_aspek"],   # hanya bobot yang editable
+                    disabled=True,
                     column_config={
                         "aspek": st.column_config.TextColumn(
                             "Aspek", width="medium"
@@ -130,14 +130,7 @@ for item in jaspek:
                             width="large"
                         ),
                         "bobot": st.column_config.NumberColumn(
-                            "Bobot",
-                            min_value=0,
-                            max_value=100,
-                            step=1,
-                            format="%d",
+                            "Bobot(%)",
                             width="small"
                         )})
-
-
-
 
