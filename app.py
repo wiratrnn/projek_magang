@@ -4,6 +4,7 @@ import time
 
 st.set_page_config(page_title="Aplikasi Penilaian", page_icon="logoBPS.png")
 
+st.write(st.context.headers)
 @st.cache_resource
 def initialize_login():
     return {}
@@ -88,6 +89,7 @@ else:
     nav = st.navigation(menu)
 
 nav.run()
+
 
 
 
