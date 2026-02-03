@@ -14,6 +14,9 @@ login = initialize_login()
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
+if login.get(sid, {}).get("logged_in"):
+    st.session_state.logged_in = True
+
 def login_page():
     with st.container(border=True):
         st.title(":blue[SI]:green[PEND]:orange[EKAR]", text_alignment='center')
@@ -65,6 +68,7 @@ def login_page():
 def logout():
     login.pop(sid, None)
     st.session_state.pop("sid", None)
+    st.session_state.logged_in = False
     st.rerun()
 
 role = login.get(sid, {}).get("role")
