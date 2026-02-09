@@ -42,11 +42,11 @@ def hash(password):
 
 def connection():
     return mysql.connector.connect(
-        host='gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
-        user='3z6cRQ7E5WYFy8C.root',
-        password='zSfk6X4v2VT53fQm',
-        database='SIPENDEKAR',
-        port=4000)
+        host=st.secrets['host'],
+        user=st.secrets['user'],
+        password=st.secrets['password'],
+        database=st.secrets['database'],
+        port=st.secrets['port'])
 
 def fetch_one(query, params=None):
     with connection() as conn:
@@ -99,3 +99,4 @@ def sync_total(id_pegawai, id_periode):
                 """, (id_pegawai, id_periode, hasil))
 
             conn.commit()
+
