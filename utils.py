@@ -1,4 +1,5 @@
 import mysql.connector
+import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 import hashlib
 
@@ -99,4 +100,5 @@ def sync_total(id_pegawai, id_periode):
                 """, (id_pegawai, id_periode, hasil))
 
             conn.commit()
+
 
