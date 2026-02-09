@@ -1,72 +1,137 @@
+import time
 import streamlit as st
-from utils import fetch_one
+from utils import fetch_one, fetch_all, execute_all, sync_total
+
+def fn(x):
+    return f"{x:.2f}".rstrip("0").rstrip(".")
+
+def t_jaspek(judul):
+    st.markdown(
+            f"""
+            <div style="text-align: left; margin-bottom:1rem;">
+                <span style="
+                    background-color: #008f58;
+                    color: #f3f3f3;
+                    font-weight: 700;
+                    padding: 6px 14px;
+                    border-radius: 8px;
+                    font-size: 2.25rem;
+                ">
+                    {judul}
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+@st.dialog("Verifikasi Nilai")
+def verif(total, nilai):
+    st.markdown(f'Nilai yang diperoleh oleh {st.session_state.user['nama']} sebesar **{total}**')
+    col1, col2, = st.columns(2)
+
+    verif_area = st.empty()
+    with verif_area.container():
+        col1, col2 = st.columns([1.8, 9])
+        if col1.button("Batal", key="reject"):
+            st.rerun()
+        confirm_verif = col2.button("Ya, Benar", type="primary", key='accept')
+
+    if confirm_verif:
+        verif_area.empty() 
+        with st.status("Sedang Memproses...", state='complete'):
+            execute_all("""
+                    INSERT INTO nilai_aspek
+                    (id_pegawai, id_penilai, id_periode, id_aspek, id_jaspek, nilai)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                    nilai = VALUES(nilai)
+                    """,(nilai))
+            time.sleep(0.5)
+            sync_total(st.session_state.user['id_pegawai'], st.session_state.user['id_periode'])
+            time.sleep(0.5)
+            st.session_state.pop("user", None)
+            st.toast('Berhasil Menambahkan Nilai ke Database')
+            time.sleep(1)
+            st.rerun()
 
 if "user" not in st.session_state:
     st.session_state.user = None
 
 st.title("📝 Pemberian Skor Karyawan")
-nama_karyawan = fetch_one("SELECT GROUP_CONCAT(name_user ORDER BY name_user) AS names FROM user")
+nama_karyawan = fetch_one("SELECT GROUP_CONCAT(nama ORDER BY nama) AS names FROM pegawai")
+bulans = ["Januari","Februari","Maret","April","Mei","Juni",
+         "Juli","Agustus","September","Oktober","November","Desember"]
 
 with st.form("Pencarian Karyawan", border=False):
     col1, col2 = st.columns(2)
     with col1:
-        nama = st.selectbox("Nama Karyawan", nama_karyawan["names"].split(","), placeholder="pilih", index=None )
-        bulan = st.selectbox("Periode Penilaian", ["jan", "feb", "mar", "apr", "mei", "jun", 
-                                                    "jul", "agu", "sep", "okt", "nov", "des"])
-
+        nama = st.selectbox("Nama Karyawan", nama_karyawan["names"].split(","), index=None)
+        bulan = st.selectbox("Periode Penilaian", range(1, 13),
+                             format_func=lambda x: bulans[x-1])
     with col2:
         unit = st.selectbox("Unit Kerja", ["Umum", "Teknis", "Pengolahan"])
-        tahun = st.selectbox("Tahun Penilaian", ["2022", "2023", "2024", "2025", 
-                                                "2026", "2027", "2028", "2029"])
+        tahun = st.selectbox("Tahun Penilaian", [2022, 2023, 2024, 2025, 
+                                                2026, 2027, 2028, 2029])
     if st.form_submit_button("🔍 Cari", type="primary"):
-        st.session_state.user = fetch_one(""" 
-                        SELECT
-                            id_user,
-                            department,
-                            name_user
-                        FROM user
-                        WHERE name_user = %s AND department = %s
-                            """, (nama, unit))
+        st.session_state.user = fetch_one("""
+                                        SELECT
+                                            p.id_pegawai,
+                                            p.nama,
+                                            (   SELECT id_periode
+                                                FROM periode
+                                                WHERE tahun = %s AND bulan = %s
+                                            ) AS id_periode
+                                        FROM pegawai p
+                                        WHERE p.nama = %s AND p.unit_kerja = %s
+                                        """, (tahun, bulan, nama, unit))
+        
         if st.session_state.user:
-            st.toast(f"berhasil {st.session_state.user['name_user']}")
+            st.toast(f"berhasil {st.session_state.user['nama']}")
         else :
-            st.error("Karyawan tidak ditemukan, perbaiki nama atau departmentnya")
+            st.error("Data pegawai tidak ditemukan, periksa nama dan unit kerja")
 
 if st.session_state.user:
-    # Form penilaian
+    aspek = fetch_all("SELECT * FROM aspek")
+    nama_aspek = [n['nama_aspek'] for n in aspek]
+    detail_aspek = [n['detail_aspek'] for n in aspek]
+    bobot = [n['bobot'] for n in aspek]
+
     with st.form("form_penilaian", clear_on_submit=False):
-        with st.container(border=True):
-            st.subheader("Disiplin")
-            col_disiplin1, col_disiplin2, col_disiplin3= st.columns(3)
-            ketepatan = col_disiplin1.number_input(f"**Ketepatan (10%)**", min_value=0, max_value=100, step=1, key="ketepatan")
-            kerapihan = col_disiplin2.number_input(f"**Kerapihan (10%)**", min_value=0, max_value=100, step=1, key="kerapihan")
-            waktu = col_disiplin3.number_input(f"**Waktu (10%)**", min_value=0, max_value=100, step=1, key="waktu")
+        st.title("Form Penilaian", text_alignment='center')
 
-        with st.container(border=True):
-            st.subheader("Sikap Kerja")
-            col_sikap1, col_sikap2 = st.columns(2)
-            motivasi = col_sikap1.number_input(f"**Motivasi (15%)**", min_value=0, max_value=100, step=1, key="motivasi")
-            komunikasi = col_sikap2.number_input(f"**Komunikasi (15%)**", min_value=0, max_value=100, step=1, key="komunikasi")
+        t_jaspek('Disiplin')
+        ketepatan = st.number_input(f"**{nama_aspek[0]} ({fn(bobot[0])}%)**", value=None, min_value=0, max_value=100, step=1, key=f"{nama_aspek[0]}", placeholder=detail_aspek[0])
+        kerapihan = st.number_input(f"**{nama_aspek[1]} ({fn(bobot[1])}%)**", value=None, min_value=0, max_value=100, step=1, key=f"{nama_aspek[1]}", placeholder=detail_aspek[1])
+        kepatuhan = st.number_input(f"**{nama_aspek[2]} ({fn(bobot[2])}%)**", value=None, min_value=0, max_value=100, step=1, key=f"{nama_aspek[2]}", placeholder=detail_aspek[2])
+        st.divider()
 
-        with st.container(border=True):
-            st.subheader("Hasil Kerja")
-            col_kerja1, col_kerja2, col_kerja3 = st.columns(3)
-            kualitas = col_kerja1.number_input(f"**Kualitas (15%)**", min_value=0, max_value=100, step=1, key="kualitas")
-            kuantitas = col_kerja2.number_input(f"**Kuantitas (10%)**", min_value=0, max_value=100, step=1, key="kuantitas")
-            tanggungjawab = col_kerja3.number_input(f"**Tanggungjawab (15%)**", min_value=0, max_value=100, step=1, key="tanggungjawab")
-        
+        t_jaspek("Sikap Kerja")
+        inisiatif   = st.number_input(f"**{nama_aspek[3]} ({fn(bobot[3])}%)**", value=None, min_value=0, max_value=100, step=1, key=f"{nama_aspek[3]}", placeholder=detail_aspek[3])
+        kolaboratif = st.number_input(f"**{nama_aspek[4]} ({fn(bobot[4])}%)**", value=None, min_value=0, max_value=100, step=1, key=f"{nama_aspek[4]}", placeholder=detail_aspek[4])
+        st.divider()
+
+        t_jaspek("Hasil Kerja")
+        kualitas  = st.number_input(f"**{nama_aspek[5]} ({fn(bobot[5])}%)**", value=None, min_value=0, max_value=100, step=1, key=f"{nama_aspek[5]}", placeholder=detail_aspek[5])
+        kuantitas = st.number_input(f"**{nama_aspek[6]} ({fn(bobot[6])}%)**", value=None, min_value=0, max_value=100, step=1, key=f"{nama_aspek[6]}", placeholder=detail_aspek[6])
+        akuntabil = st.number_input(f"**{nama_aspek[7]} ({fn(bobot[7])}%)**", value=None, min_value=0, max_value=100, step=1, key=f"{nama_aspek[7]}", placeholder=detail_aspek[7])
+
         if st.form_submit_button("✅ hitung", width='stretch', type="primary"):
-            total = (ketepatan*0.1 + kerapihan*0.1 + waktu*0.1 +
-                     motivasi*0.15 + komunikasi*0.15 +
-                     kualitas*0.15 + kuantitas*0.1 + tanggungjawab*0.15)
-            
-            hasil0, hasil1, hasil2, hasil3 = st.columns(4)
-            with hasil0:
-                st.metric("Total Skor", f"{total:.2f}")
-            with hasil1:
-                st.metric("Disiplin", f"{ketepatan*0.1 + kerapihan*0.1 + waktu*0.1:.2f}")
-            with hasil2:
-                st.metric("Sikap Kerja", f"{motivasi*0.15 + komunikasi*0.15:.2f}")
-            with hasil3:
-                st.metric("Hasil Kerja", f"{kualitas*0.15 + kuantitas*0.1 + tanggungjawab*0.15:.2f}")
-    
+            nilai = [ketepatan or 0, kerapihan or 0, kepatuhan or 0, inisiatif or 0, 
+                     kolaboratif or 0, kualitas or 0, kuantitas or 0, akuntabil or 0]
+                      
+            total = sum(n * b for n, b in zip(nilai, bobot)) / 100
+
+            id_aspek = [n['id_aspek'] for n in aspek]
+            id_jaspek = [n['id_jaspek'] for n in aspek]
+            params = [( st.session_state.user['id_pegawai'],
+                        st.session_state.id_user,
+                        st.session_state.user['id_periode'],
+                        aspek,
+                        jaspek,
+                        n
+                        )
+                        for aspek, jaspek, n in zip(id_aspek, id_jaspek, nilai)
+                        if n != 0
+                        ]
+
+            verif(fn(total), params)
