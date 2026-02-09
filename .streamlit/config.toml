@@ -1,6 +1,9 @@
 [theme]
-primaryColor = "#1f5aa6"
+primaryColor = "#008f58"
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f3f3f3"
 textColor = "#1c1c1c"
 font = "sans serif"
+
+[theme.sidebar]
+primaryColor="redColor"
