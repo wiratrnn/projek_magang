@@ -7,6 +7,8 @@ warna = px.colors.qualitative.G10
 bulans = ["Januari","Februari","Maret","April","Mei","Juni",
          "Juli","Agustus","September","Oktober","November","Desember"]
 
+st.session_state.pop("target", None)
+
 def fn(x):
     return f"{x:.2f}".rstrip("0").rstrip(".")
 
@@ -27,7 +29,6 @@ def get_top5(periode):
         WHERE id_periode = %s
         GROUP BY p.id_pegawai, p.nama
         ORDER BY nilai DESC
-        LIMIT 5
         """,(periode,))
 
 @st.cache_data(ttl=300)
@@ -63,7 +64,7 @@ def periode_punya_nilai(id_periode):
         """, (id_periode,))
     return row["jumlah"] > 0
 
-st.session_state.pop("user", None)
+
 st.title("📊 Dashboard")
 jlh_pegawai = fetch_all("SELECT COUNT(*) AS jumlah FROM pegawai WHERE status = 1")
 stats = fetch_all("""
@@ -72,6 +73,7 @@ stats = fetch_all("""
             MAX(nilai) AS max_nilai,
             MIN(nilai) AS min_nilai
         FROM nilai_aspek """)
+
 
 colTahun, colBulan = st.columns(2)
 Y = colTahun.selectbox("tahun periode", options=[2022, 2023, 2024, 2025, 
@@ -95,8 +97,7 @@ if not periode_punya_nilai(periode_row):
     st.warning(f"Belum ada data penilaian untuk periode {bulans[M-1]} {Y}.")
     st.stop()
 
-st.space()
-colBar, colTop = st.columns([8,3.5], gap='small', border=True)
+colBar, colTop = st.columns([8,4], gap='small', border=True)
 
 @st.fragment
 def bar_chart(periode):
@@ -132,6 +133,7 @@ def bar_chart(periode):
         showlegend=False
     )
 
+    colBar.subheader("Distribusi Nilai Pegawai")
     colBar.plotly_chart(fig)
 
 bar_chart(periode_row)
@@ -146,13 +148,17 @@ def TOP(periode):
             ("🏅", "#00CC96"), 
             ("🏅", "#00CC96")]
 
-    for i, data in enumerate(df2):
-        icon, color = medals[i]
-        colTop.metric_card(f"{data['nama']}", fn(data['nilai']), f"{icon}", color)
+    with colTop.container(height=490, width=300, border=False):
+        st.markdown("##### TOP bulanan")
+        for i, data in enumerate(df2[:5]):
+            icon, color = medals[i]
+            metric_card(st,f"{data['nama']}", fn(data['nilai']), f"{icon}", color)
+    
+        if st.session_state.role == 1:
+            for i, data in enumerate(df2[5:], start=6):
+                metric_card(st,f"{data['nama']}", fn(data['nilai']), icon=f"•{i}" ,bg_color="#8b8b8b")
 
 TOP(periode_row)
-
-colLine, colHbar = st.columns([6,4], gap='xxsmall', border=True)
 
 @st.fragment
 def line():
@@ -166,7 +172,6 @@ def line():
     df3 = df3.apply(pd.to_numeric, errors="coerce")
     df3["periode"] = df3["tahun"].astype(str) + "-" + df3["bulan"].astype(str).str.zfill(2)
 
-    colLine.subheader("Tren Kinerja Pegawai")
     fig = px.line(df3, 
                 x='periode', 
                 y = ["disiplin","sikap_kerja","hasil_kerja",'overall'],
@@ -179,12 +184,15 @@ def line():
     fig.update_yaxes(title="Nilai")
     fig.update_layout(
         margin=dict(t=30),
-        showlegend=False
+        showlegend=True
     )
-    colLine.plotly_chart(fig, height=200)
+    with st.container(border=True):
+        st.subheader("Tren Kinerja Pegawai")
+        st.plotly_chart(fig, height=350)
 
 line()
 
+colDetail, colHbar, = st.columns([4,6], gap='xxsmall', border=True)
 @st.fragment
 def hbar(periode):
     rows = get_hbar_data(periode)
@@ -192,7 +200,7 @@ def hbar(periode):
     nama_aspek = [r["nama_aspek"] for r in rows]
     nilai = [float(r["rata"]) for r in rows]
 
-    colHbar.markdown('#### **Performa per Aspek**')
+    colHbar.markdown('#### **Performa Pegawai per Sub-aspek**')
     fig = px.bar(
         x=nilai,
         y=nama_aspek,
@@ -213,7 +221,113 @@ def hbar(periode):
         yaxis_title="",
         showlegend=False
     )
-    fig.update_xaxes(range=[70, 85])
-    colHbar.plotly_chart(fig, height=250)
+    fig.update_xaxes(range=[50, 100])
+    colHbar.plotly_chart(fig, height=300)
 
 hbar(periode_row)
+
+def t_jaspek(judul):
+    st.markdown(
+            f"""
+            <div style="text-align: left; margin-bottom:1rem;">
+                <span style="
+                    background-color: #008f58;
+                    color: #f3f3f3;
+                    font-weight: 700;
+                    padding: 6px 14px;
+                    border-radius: 8px;
+                    font-size: 18px;
+                ">
+                    {judul}
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    
+colDetail.header("Detail Penilaian Pegawai")
+
+with colDetail.expander("Disiplin [30%]"):
+    aspek = fetch_all("SELECT * FROM aspek WHERE id_jaspek = 1")
+    col1, col2 = st.columns([5, 2])
+
+    for disiplin in aspek:
+        with st.container():
+            col1, col2 = st.columns([5, 2])
+
+            with col1:
+                t_jaspek(disiplin['nama_aspek'])
+
+            with col2:
+                st.markdown(
+                    f"""
+                    <div style="
+                        text-align:center;
+                        padding:2px;
+                        border-radius:8px;
+                        font-weight:600;
+                        border:1px solid #ddd;">
+                        {fn(disiplin['bobot'])}%
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            st.caption(disiplin["detail_aspek"])
+
+with colDetail.expander("Sikap Kerja [30%]"):
+    aspek = fetch_all("SELECT * FROM aspek WHERE id_jaspek = 2")
+    col1, col2 = st.columns([5, 2])
+
+    for disiplin in aspek:
+        with st.container():
+            col1, col2 = st.columns([5, 2])
+
+            with col1:
+                t_jaspek(disiplin['nama_aspek'])
+
+            with col2:
+                st.markdown(
+                    f"""
+                    <div style="
+                        text-align:center;
+                        padding:2px;
+                        border-radius:8px;
+                        font-weight:600;
+                        border:1px solid #ddd;">
+                        {fn(disiplin['bobot'])}%
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            st.caption(disiplin["detail_aspek"])
+
+with colDetail.expander("Hasil Kerja [40%]"):
+    aspek = fetch_all("SELECT * FROM aspek WHERE id_jaspek = 3")
+    col1, col2 = st.columns([5, 2])
+
+    for disiplin in aspek:
+        with st.container():
+            col1, col2 = st.columns([5, 2])
+
+            with col1:
+                t_jaspek(disiplin['nama_aspek'])
+
+            with col2:
+                st.markdown(
+                    f"""
+                    <div style="
+                        text-align:center;
+                        padding:2px;
+                        border-radius:8px;
+                        font-weight:600;
+                        border:1px solid #ddd;">
+                        {fn(disiplin['bobot'])}%
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            st.caption(disiplin["detail_aspek"])
+

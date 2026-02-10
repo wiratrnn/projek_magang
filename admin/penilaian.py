@@ -54,10 +54,10 @@ def verif(total, nilai):
             time.sleep(1)
             st.rerun()
 
-if "user" not in st.session_state:
-    st.session_state.user = None
+if "target" not in st.session_state:
+    st.session_state.target = None
 
-st.title("📝 Pemberian Skor Karyawan")
+st.title("📋 Pemberian Skor Karyawan")
 nama_karyawan = fetch_one("SELECT GROUP_CONCAT(nama ORDER BY nama) AS names FROM pegawai")
 bulans = ["Januari","Februari","Maret","April","Mei","Juni",
          "Juli","Agustus","September","Oktober","November","Desember"]
@@ -90,7 +90,7 @@ with st.form("Pencarian Karyawan", border=False):
         else :
             st.error("Data pegawai tidak ditemukan, periksa nama dan unit kerja")
 
-if st.session_state.user:
+if st.session_state.target:
     aspek = fetch_all("SELECT * FROM aspek")
     nama_aspek = [n['nama_aspek'] for n in aspek]
     detail_aspek = [n['detail_aspek'] for n in aspek]
@@ -135,3 +135,7 @@ if st.session_state.user:
                         ]
 
             verif(fn(total), params)
+
+
+            
+                
