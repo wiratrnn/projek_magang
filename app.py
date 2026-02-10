@@ -105,6 +105,7 @@ def login_page():
                                             u.id_user,
                                             u.password,
                                             u.penilai AS role,
+                                            p.nip,
                                             p.nama,
                                             p.unit_kerja,
                                             p.jabatan,
@@ -132,7 +133,7 @@ def login_page():
                     st.caption("Dibuat Oleh Mahasiswa Statistika Universitas Negeri Medan © 2026.", text_alignment='center')
         st.info("ℹ️ Hubungi pihak Operator untuk mereset password atau mendaftar.")
 
-@st.dialog("Apakah Anda yakin ingin keluar?")
+@st.dialog("Apakah Anda yakin ingin keluar?", dismissible=False)
 def logout():
     logout_area = st.empty()
     with logout_area.container():
@@ -162,18 +163,18 @@ if not (st.session_state.get('id_user') or st.session_state.get('key')):
         st.session_state.key = hash(key) if key is not None else None
         if st.session_state.key is not None and str(st.session_state.key) == str(cookie.get("key")):
             user = fetch_one("""
-                            SELECT
-                                p.nama,
-                                p.unit_kerja,
-                                p.jabatan,
-                                p.jenis_kelamin
-                            FROM users u
-                            JOIN pegawai p ON u.id_pegawai = p.id_pegawai
-                            WHERE p.id_pegawai = %s AND u.password = %s
-                        """, (cookie.get('id_user'), key))
+                    SELECT
+                        p.nama,
+                        p.nip,
+                        p.unit_kerja,
+                        p.jabatan,
+                        p.jenis_kelamin
+                    FROM users u
+                    JOIN pegawai p ON u.id_pegawai = p.id_pegawai
+                    WHERE p.id_pegawai = %s AND u.password = %s
+                    """, (cookie.get('id_user'), key))
             
             st.session_state.update(user)
-            st.rerun()
 
 if (not st.session_state.id_user
     or not cookie.get("id_user")
@@ -182,12 +183,12 @@ if (not st.session_state.id_user
     or st.session_state.id_user != cookie.get("id_user")
     or st.session_state.key != cookie.get("key")):
     st.markdown("""
-        <style>
-        section[data-testid="stSidebar"] {
-            display: none;
-        }
-        </style>
-        """, unsafe_allow_html=True)
+                <style>
+                section[data-testid="stSidebar"] {
+                    display: none;
+                }
+                </style>
+                """, unsafe_allow_html=True)
     nav = st.navigation([st.Page(login_page)])
 
 else:
@@ -207,22 +208,32 @@ else:
             """,
             unsafe_allow_html=True
         )
-        st.button("Logout", type='primary', on_click=logout)
+        
+        colLog,colDetail = st.columns([2,1], gap='xxsmall')
+        colLog.button("Logout", type='primary', on_click=logout, icon=":material/logout:")
+        if colDetail.button('info', key='info'):
+            st.switch_page("pages/profil.py")
+
         st.divider()
         if role == 1 :
             st.page_link(st.Page("admin/dashboard.py"), icon='📊')
-            st.page_link(st.Page("admin/penilaian.py"), icon=":material/person_add:")
+            st.page_link(st.Page("admin/pegawai.py"), icon="👥")
+            st.page_link(st.Page("admin/penilaian.py"), icon="📋")
+
         else :
             st.page_link(st.Page("admin/dashboard.py"), icon='📊')
 
-    
     if role == 1:
         nav = st.navigation([st.Page("admin/dashboard.py", default=True),
-                            st.Page("admin/penilaian.py")], 
+                            st.Page("admin/penilaian.py"),
+                            st.Page("admin/pegawai.py"),
+                            st.Page("pages/profil.py"),
+                            st.Page("pages/data_pegawai.py")],
                             position='hidden')
 
     else:
-        nav = st.navigation([st.Page("admin/dashboard.py")], 
+        nav = st.navigation([st.Page("admin/dashboard.py"),
+                            st.Page("pages/profil.py")], 
                             position='hidden')
 
 nav.run()
