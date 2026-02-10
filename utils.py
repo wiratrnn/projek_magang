@@ -1,9 +1,8 @@
 import mysql.connector
-import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 import hashlib
 
-def _metric_card(self, title, value, icon="⭐", bg_color="#ffffff"):
+def metric_card(self, title, value, icon="⭐", bg_color="#ffffff"):
     self.markdown(
         f"""
         <div style="
@@ -36,18 +35,18 @@ def _metric_card(self, title, value, icon="⭐", bg_color="#ffffff"):
         unsafe_allow_html=True
     )
 
-DeltaGenerator.metric_card = _metric_card
+DeltaGenerator.metric_card = metric_card
 
 def hash(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
 def connection():
     return mysql.connector.connect(
-        host=st.secrets['host'],
-        user=st.secrets['user'],
-        password=st.secrets['password'],
-        database=st.secrets['database'],
-        port=st.secrets['port'])
+        host='gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+        user='3z6cRQ7E5WYFy8C.root',
+        password='zSfk6X4v2VT53fQm',
+        database='SIPENDEKAR',
+        port=4000)
 
 def fetch_one(query, params=None):
     with connection() as conn:
@@ -100,5 +99,3 @@ def sync_total(id_pegawai, id_periode):
                 """, (id_pegawai, id_periode, hasil))
 
             conn.commit()
-
-
