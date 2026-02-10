@@ -80,11 +80,12 @@ opsi = (
     data_df[["id_periode", "bulan", "tahun"]]
     .drop_duplicates()
     .sort_values("id_periode")
+    .sort_index(ascending=True)
 )
 
 periode = st.selectbox(
     "Pilih periode",
-    opsi["id_periode"].sort_index(ascending=False),
+    opsi,
     format_func=lambda x: f"{opsi.set_index('id_periode').loc[x, 'bulan']}/"
                           f"{opsi.set_index('id_periode').loc[x, 'tahun']}"
 )
@@ -226,4 +227,5 @@ st.header("Tabel Rekap Penilaian")
 num_cols = tabel.select_dtypes(include="number").columns
 st.dataframe(tabel.style.highlight_max(axis=1,subset= num_cols)
                         .format(fn, subset=num_cols),
+
             width='stretch', hide_index=True)
