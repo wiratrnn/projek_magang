@@ -57,15 +57,20 @@ def verif(total, nilai):
 if "target" not in st.session_state:
     st.session_state.target = None
 
-st.title("📋 Pemberian Skor Karyawan")
-nama_karyawan = fetch_one("SELECT GROUP_CONCAT(nama ORDER BY nama) AS names FROM pegawai")
+st.title("📋 Pemberian Skor pegawai")
+nama_pegawai = fetch_one("""
+    SELECT GROUP_CONCAT(nama ORDER BY nama) AS names
+    FROM pegawai
+    WHERE nama <> %s
+    """,(st.session_state.nama,)
+)
 bulans = ["Januari","Februari","Maret","April","Mei","Juni",
          "Juli","Agustus","September","Oktober","November","Desember"]
 
-with st.form("Pencarian Karyawan", border=False):
+with st.form("Pencarian pegawai", border=False):
     col1, col2 = st.columns(2)
     with col1:
-        nama = st.selectbox("Nama Karyawan", nama_karyawan["names"].split(","), index=None)
+        nama = st.selectbox("Nama pegawai", nama_pegawai["names"].split(","), index=None)
         bulan = st.selectbox("Periode Penilaian", range(1, 13),
                              format_func=lambda x: bulans[x-1])
     with col2:
@@ -135,7 +140,3 @@ if st.session_state.target:
                         ]
 
             verif(fn(total), params)
-
-
-            
-                
