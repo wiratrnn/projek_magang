@@ -91,7 +91,7 @@ with st.form("Pencarian pegawai", border=False):
                                         """, (tahun, bulan, nama, unit))
         
         if st.session_state.target:
-            st.toast(f"berhasil {st.session_state.user['nama']}")
+            st.toast(f"berhasil {st.session_state.target['nama']}")
         else :
             st.error("Data pegawai tidak ditemukan, periksa nama dan unit kerja")
 
@@ -140,4 +140,5 @@ if st.session_state.target:
                         ]
 
             verif(fn(total), params)
+
 
