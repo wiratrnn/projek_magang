@@ -78,7 +78,7 @@ with st.form("Pencarian pegawai", border=False):
         tahun = st.selectbox("Tahun Penilaian", [2022, 2023, 2024, 2025, 
                                                 2026, 2027, 2028, 2029])
     if st.form_submit_button("🔍 Cari", type="primary"):
-        st.session_state.user = fetch_one("""
+        st.session_state.target = fetch_one("""
                                         SELECT
                                             p.id_pegawai,
                                             p.nama,
@@ -90,7 +90,7 @@ with st.form("Pencarian pegawai", border=False):
                                         WHERE p.nama = %s AND p.unit_kerja = %s
                                         """, (tahun, bulan, nama, unit))
         
-        if st.session_state.user:
+        if st.session_state.target:
             st.toast(f"berhasil {st.session_state.user['nama']}")
         else :
             st.error("Data pegawai tidak ditemukan, periksa nama dan unit kerja")
@@ -140,3 +140,4 @@ if st.session_state.target:
                         ]
 
             verif(fn(total), params)
+
