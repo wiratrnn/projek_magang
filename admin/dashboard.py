@@ -7,6 +7,10 @@ warna = px.colors.qualitative.G10
 
 st.session_state.pop("target", None)
 
+def short_name(full):
+    part = str(full).split(",", 1)[0].strip()
+    return " ".join(part.split()[:2])
+
 def get_bar_data(periode):
     return fetch_all("""
         SELECT nilai
@@ -147,11 +151,11 @@ def TOP(periode):
         st.markdown("##### TOP bulanan")
         for i, data in enumerate(df2[:5]):
             icon, color = medals[i]
-            metric_card(st,f"{data['nama']}", data['nilai'], f"{icon}", color)
+            metric_card(st,short_name(data['nama']), data['nilai'], f"{icon}", color)
     
         if st.session_state.role == 1:
             for i, data in enumerate(df2[5:], start=6):
-                metric_card(st,f"{data['nama']}", data['nilai'], icon=f"•{i}" ,bg_color="#8b8b8b")
+                metric_card(st,short_name(data['nama']), data['nilai'], icon=f"•{i}" ,bg_color="#8b8b8b")
 
 TOP(periode_row)
 
@@ -321,4 +325,5 @@ with colDetail.expander("Hasil Kerja [40%]"):
                 )
 
             st.caption(disiplin["detail_aspek"])
+
 
