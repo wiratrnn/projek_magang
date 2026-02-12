@@ -61,15 +61,14 @@ if "target" not in st.session_state:
 
 st.title("📋 Pemberian Nilai Karyawan")
 nama_pegawai = fetch_one("""
-    SELECT GROUP_CONCAT(nama ORDER BY nama) AS names
+    SELECT GROUP_CONCAT(nama ORDER BY nama SEPARATOR '|') AS names
     FROM pegawai
     WHERE nama <> %s
-    """,(st.session_state.nama,)
-)
+    """, (st.session_state.nama,))
 
 with st.form("Pencarian Karyawan", border=False):
     col1, col2, col3 = st.columns(3)
-    nama = col1.selectbox("Nama Karyawan", nama_pegawai["names"].split(","), index=None)
+    nama = col1.selectbox("Nama Karyawan", nama_pegawai["names"].split("|"), index=None)
     bulan = col2.selectbox("Periode Penilaian", range(1, 13),
                             format_func=lambda x: st.session_state.bulan[x-1])
     tahun = col3.selectbox("Tahun Penilaian", [row["tahun"] for row in get_tahun()])
@@ -134,3 +133,4 @@ if st.session_state.target:
                         ]
 
             verif(fn(total), params)
+
