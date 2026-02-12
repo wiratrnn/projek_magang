@@ -30,7 +30,7 @@ def metric_card(self, title, value, icon="⭐", bg_color="#ffffff"):
                 width:100%;
             ">
                 <div style="font-size:15px; font-weight:500; margin-top:15px; margin-left:15px">{title}</div>
-                <div style="font-size:30px; font-weight:bold;">{value}</div>
+                <div style="font-size:20px; font-weight:bold;">{value}</div>
             </div>
         </div>
         """,
@@ -144,4 +144,5 @@ def sync_total(id_pegawai, id_periode):
 
             conn.commit()
             return cursor.rowcount
+
 
