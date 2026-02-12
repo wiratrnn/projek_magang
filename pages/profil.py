@@ -3,7 +3,8 @@ import pandas as pd
 import plotly.express as px
 from utils import *
 
-biodata = get_bio(st.session_state.id_profil)
+if st.session_state.id_profil:
+    biodata = get_bio(st.session_state.id_profil)
 
 @st.cache_data(ttl=300)
 def get_detail():
