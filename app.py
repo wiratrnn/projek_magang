@@ -1,29 +1,20 @@
 from streamlit_cookies_controller import CookieController
-from utils import fetch_one, hash
+from utils import *
 import streamlit as st
 import time
-import base64
 
-@st.cache_data
-def get_images():
-    with open("images/maleprofil.png", "rb") as f:
-        male = base64.b64encode(f.read()).decode()
-        
-    with open("images/femaleprofil.png", "rb") as f:
-        female = base64.b64encode(f.read()).decode()
-    
-    with open("images/logobps.png", "rb") as f:
-        bps = base64.b64encode(f.read()).decode()
-
-    with open("images/logopendekar.png", "rb") as f:
-        logo = base64.b64encode(f.read()).decode()
-    
-    return male, female, bps, logo
+if 'bulan' not in st.session_state:
+    st.session_state.bulan = ["Januari","Februari","Maret","April","Mei","Juni",
+                            "Juli","Agustus","September","Oktober","November","Desember"]
 
 male, female, bps, logo = get_images()
 cookie = CookieController()
 
-st.html("""
+st.set_page_config(page_title="SiPENDEKAR", page_icon="images/logopendekar.png")
+
+@st.fragment
+def login_page():
+    st.html("""
         <style>
         .st-key-my_blue_container {
             background-color: rgb(145, 250, 210);
@@ -36,10 +27,7 @@ st.html("""
         }
         </style>
         """)
-st.set_page_config(page_title="SiPENDEKAR", page_icon="images/logopendekar.png")
-
-@st.fragment
-def login_page():
+    
     with st.container(key='my_blue_container', border=True, gap='xxsmall'):
         st.space('small')
         col_info, col_login = st.columns(2)
@@ -101,42 +89,41 @@ def login_page():
                     if st.form_submit_button("Login", type="primary"):
                         with st.spinner("Memproses login..."):
                             user = fetch_one("""
-                                        SELECT
-                                            u.id_user,
-                                            u.password,
-                                            u.penilai AS role,
-                                            p.nip,
-                                            p.nama,
-                                            p.unit_kerja,
-                                            p.jabatan,
-                                            p.jenis_kelamin
-                                        FROM users u
-                                        JOIN pegawai p ON u.id_pegawai = p.id_pegawai
-                                        WHERE u.username = %s AND u.password = %s
+                                    SELECT
+                                        u.id_user,
+                                        u.password,
+                                        u.penilai AS role,
+                                        p.nama,
+                                        p.jabatan,
+                                        p.jenis_kelamin
+                                    FROM users u
+                                    JOIN pegawai p ON u.id_pegawai = p.id_pegawai
+                                    WHERE u.username = %s AND u.password = %s
                                     """, (uname, password))
 
                             if user:
-                                cookie.set('role', user['role'])
-                                cookie.set('id_user', user['id_user'])
-                                cookie.set('key', hash(user['password']))
+                                cookie.set('role', user['role'], max_age=5400)
+                                cookie.set('id_user', user['id_user'], max_age=5400)
+                                cookie.set('key', hash(user['password']), max_age=5400)
 
                                 st.session_state['key'] = hash(user['password'])
                                 user.pop('password', None)
                                 st.session_state.update(user)
                                 st.toast(f"Login Berhasil, Selamat Datang {user['nama']}")
-                                time.sleep(2)
-
+                                time.sleep(0.5)
                                 st.rerun()
+
                             else:
                                 st.error("❌ Email atau password salah. Silakan coba lagi.")
 
                     st.caption("Dibuat Oleh Mahasiswa Statistika Universitas Negeri Medan © 2026.", text_alignment='center')
-        st.info("ℹ️ Hubungi pihak Operator untuk mereset password atau mendaftar.")
+        st.info("Hubungi pihak Operator untuk mereset password atau mendaftar.")
 
-@st.dialog("Apakah Anda yakin ingin keluar?", dismissible=False)
+@st.dialog("Apakah Anda yakin ingin keluar?")
 def logout():
     logout_area = st.empty()
     with logout_area.container():
+        time.sleep(0.5)
         col1, col2 = st.columns([1.8, 9])
         if col1.button("Batal", key="reject"):
             st.switch_page("admin/dashboard.py")
@@ -144,12 +131,12 @@ def logout():
 
     if confirm_logout:
         logout_area.empty() 
-        with st.spinner("Sedang Memproses..."):
-            st.session_state.clear()
+        with st.spinner("Sedang Memproses Mohon Tunggu..."):
             cookie.remove('role')
             cookie.remove('id_user')
             cookie.remove('key')
-            time.sleep(3)
+            st.session_state.clear()
+            time.sleep(0.5)
             st.switch_page(st.Page(login_page))
 
 if not (st.session_state.get('id_user') or st.session_state.get('key')):
@@ -165,8 +152,6 @@ if not (st.session_state.get('id_user') or st.session_state.get('key')):
             user = fetch_one("""
                     SELECT
                         p.nama,
-                        p.nip,
-                        p.unit_kerja,
                         p.jabatan,
                         p.jenis_kelamin
                     FROM users u
@@ -177,63 +162,60 @@ if not (st.session_state.get('id_user') or st.session_state.get('key')):
             st.session_state.update(user)
 
 if (not st.session_state.id_user
-    or not cookie.get("id_user")
     or not st.session_state.key
-    or not cookie.get("key")
     or st.session_state.id_user != cookie.get("id_user")
     or st.session_state.key != cookie.get("key")):
     st.markdown("""
-                <style>
-                section[data-testid="stSidebar"] {
-                    display: none;
-                }
-                </style>
-                """, unsafe_allow_html=True)
+            <style>
+            section[data-testid="stSidebar"] {
+                display: none;
+            }
+            </style>
+            """, unsafe_allow_html=True)
     nav = st.navigation([st.Page(login_page)])
 
 else:
-    role = st.session_state.get('role', None)
-    gender = st.session_state.get('jenis_kelamin')
+    role = st.session_state.get('role')
+    jk = st.session_state.get('jenis_kelamin')
+
     with st.sidebar:
         st.markdown(
             f"""
             <div style="text-align:center; padding:12px 0;">
-                <img src="data:image/png;base64,{male if gender == 1 else female}"
+                <img src="data:image/png;base64,{male if jk == 1 else female}"
                     style="border-radius:50%;
                             width:80px;
                             height:80px;">
-                <div style="margin-top:8px; font-weight:600;">{st.session_state.get('nama',None)} | {st.session_state.get('unit_kerja',None)}</div>
+                <div style="margin-top:8px; font-weight:600;">{st.session_state.get('nama')}</div>
                 <div style="font-size:12px; opacity:0.6;">{st.session_state.get('jabatan')}</div>
             </div>
             """,
             unsafe_allow_html=True
         )
         
-        colLog,colDetail = st.columns([2,1], gap='xxsmall')
-        colLog.button("Logout", type='primary', on_click=logout, icon=":material/logout:")
+        colOut, colDetail = st.columns([2,1], gap='xxsmall')
+        colOut.button("Logout", type='primary', on_click=logout, icon=":material/logout:")
         if colDetail.button('info', key='info'):
+            st.session_state.id_profil = st.session_state.id_user
             st.switch_page("pages/profil.py")
 
         st.divider()
         if role == 1 :
+            nav = st.navigation([st.Page("admin/dashboard.py", default=True),
+                    st.Page("admin/penilaian.py"),
+                    st.Page("admin/karyawan.py"),
+                    st.Page("pages/profil.py")],
+                    position='hidden')
+            
             st.page_link(st.Page("admin/dashboard.py"), icon='📊')
-            st.page_link(st.Page("admin/pegawai.py"), icon="👥")
+            st.page_link(st.Page("admin/karyawan.py"), icon="👥")
             st.page_link(st.Page("admin/penilaian.py"), icon="📋")
 
         else :
+            nav = st.navigation([st.Page("admin/dashboard.py"),
+                    st.Page("pages/profil.py")], 
+                    position='hidden')
+            
             st.page_link(st.Page("admin/dashboard.py"), icon='📊')
-
-    if role == 1:
-        nav = st.navigation([st.Page("admin/dashboard.py", default=True),
-                            st.Page("admin/penilaian.py"),
-                            st.Page("admin/pegawai.py"),
-                            st.Page("pages/profil.py"),
-                            st.Page("pages/data_pegawai.py")],
-                            position='hidden')
-
-    else:
-        nav = st.navigation([st.Page("admin/dashboard.py"),
-                            st.Page("pages/profil.py")], 
-                            position='hidden')
 
 nav.run()
