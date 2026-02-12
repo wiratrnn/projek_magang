@@ -143,6 +143,7 @@ if not (st.session_state.get('id_user') or st.session_state.get('key')):
     st.session_state.role = cookie.get("role")
     st.session_state.id_user = cookie.get("id_user")
     st.session_state.key = cookie.get('key')
+    st.session_state.id_profil = cookie.get("id_user")
     time.sleep(2)
 
     if cookie.get("key") and cookie.get('id_user'):
@@ -219,3 +220,4 @@ else:
             st.page_link(st.Page("admin/dashboard.py"), icon='📊')
 
 nav.run()
+
