@@ -4,8 +4,7 @@ import streamlit as st
 import time
 
 if 'bulan' not in st.session_state:
-    st.session_state.bulan = ["Januari","Februari","Maret","April","Mei","Juni",
-                            "Juli","Agustus","September","Oktober","November","Desember"]
+    st.session_state.bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"]
 
 male, female, bps, logo = get_images()
 cookie = CookieController()
@@ -220,4 +219,5 @@ else:
             st.page_link(st.Page("admin/dashboard.py"), icon='📊')
 
 nav.run()
+
 
