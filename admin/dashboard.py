@@ -4,15 +4,9 @@ import plotly.express as px
 from utils import *
 
 warna = px.colors.qualitative.G10
-bulans = ["Januari","Februari","Maret","April","Mei","Juni",
-         "Juli","Agustus","September","Oktober","November","Desember"]
 
 st.session_state.pop("target", None)
 
-def fn(x):
-    return f"{x:.2f}".rstrip("0").rstrip(".")
-
-@st.cache_data(ttl=300)
 def get_bar_data(periode):
     return fetch_all("""
         SELECT nilai
@@ -20,31 +14,40 @@ def get_bar_data(periode):
         WHERE id_periode = %s
         """, (periode,))
 
-@st.cache_data(ttl=300)
-def get_top5(periode):
+def get_top5_data(periode):
     return fetch_all("""
-        SELECT p.nama, n.nilai
-        FROM nilai_total n
-        JOIN pegawai p ON p.id_pegawai = n.id_pegawai
-        WHERE id_periode = %s
-        GROUP BY p.id_pegawai, p.nama
-        ORDER BY nilai DESC
-        """,(periode,))
+        SELECT 
+            p.nama, 
+            COALESCE(CAST(n.nilai AS CHAR), '-') AS nilai
+        FROM pegawai p
+        LEFT JOIN nilai_total n ON p.id_pegawai = n.id_pegawai AND n.id_periode = %s
+        ORDER BY n.nilai DESC
+        """, (periode,))
 
-@st.cache_data(ttl=300)
-def get_line_data():
+def get_line_data(tahun):
     return fetch_all("""
-        SELECT p.id_periode, p.tahun, p.bulan,
-            AVG(CASE WHEN n.id_jaspek = 1 THEN n.nilai END) AS disiplin,
-            AVG(CASE WHEN n.id_jaspek = 2 THEN n.nilai END) AS sikap_kerja,
-            AVG(CASE WHEN n.id_jaspek = 3 THEN n.nilai END) AS hasil_kerja
-        FROM nilai_aspek n
-        JOIN periode p ON p.id_periode = n.id_periode
+        SELECT 
+            p.id_periode, p.tahun, p.bulan,
+            ROUND(AVG(CASE WHEN t.id_jaspek = 1 THEN t.skor_pegawai END), 2) AS disiplin,
+            ROUND(AVG(CASE WHEN t.id_jaspek = 2 THEN t.skor_pegawai END), 2) AS sikap_kerja,
+            ROUND(AVG(CASE WHEN t.id_jaspek = 3 THEN t.skor_pegawai END), 2) AS hasil_kerja,
+            (SELECT ROUND(AVG(nt.nilai), 2) 
+            FROM nilai_total nt 
+            WHERE nt.id_periode = p.id_periode) AS total
+
+        FROM (
+            SELECT n.id_periode, n.id_pegawai, n.id_jaspek,
+                SUM(n.nilai * a.bobot) / SUM(a.bobot) AS skor_pegawai
+            FROM nilai_aspek n
+            JOIN aspek a USING (id_aspek)
+            GROUP BY n.id_periode, n.id_pegawai, n.id_jaspek
+        ) t
+        JOIN periode p USING (id_periode)
+        WHERE p.tahun = %s
         GROUP BY p.id_periode, p.tahun, p.bulan
-        ORDER BY p.tahun, p.bulan
-        """)
+        ORDER BY p.bulan ASC
+        """,(tahun,))
 
-@st.cache_data(ttl=300)
 def get_hbar_data(periode):
     return fetch_all("""
         SELECT a.nama_aspek, AVG(na.nilai) AS rata
@@ -55,37 +58,24 @@ def get_hbar_data(periode):
         ORDER BY rata
         """, (periode,))
 
-@st.cache_data(ttl=300)
-def periode_punya_nilai(id_periode):
-    row = fetch_one("""
-        SELECT COUNT(*) AS jumlah
-        FROM nilai_aspek
-        WHERE id_periode = %s
-        """, (id_periode,))
-    return row["jumlah"] > 0
-
-
-st.title("📊 Dashboard")
-jlh_pegawai = fetch_all("SELECT COUNT(*) AS jumlah FROM pegawai WHERE status = 1")
-stats = fetch_all("""
+def metric_data(id_periode):
+    return fetch_one("""
         SELECT 
             AVG(nilai) AS avg_nilai, 
             MAX(nilai) AS max_nilai,
             MIN(nilai) AS min_nilai
-        FROM nilai_aspek """)
+        FROM nilai_total
+        WHERE id_periode = %s
+        """,(id_periode,))
 
+st.title("📊 Dashboard")
 
-colTahun, colBulan = st.columns(2)
-Y = colTahun.selectbox("tahun periode", options=[2022, 2023, 2024, 2025, 
-                                                2026, 2027, 2028, 2029])
+jlh_pegawai = fetch_one("SELECT COUNT(*) AS jumlah FROM pegawai WHERE status = 1")['jumlah']
+
+colBulan, colTahun = st.columns(2)
+Y = colTahun.selectbox("tahun periode", options=[row["tahun"] for row in get_tahun()])
 M = colBulan.selectbox("Periode Penilaian", range(1, 13),
-                        format_func=lambda x: bulans[x-1])
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric_card("Pegawai Aktif", fn(jlh_pegawai[0]['jumlah']), "👥", "#3366CC")
-col2.metric_card("Rata-rata Nilai", fn(stats[0]['avg_nilai']), "⭐", "#109618")
-col3.metric_card("Nilai Tertinggi", fn(stats[0]['max_nilai']), "🏆", "#FF9900")
-col4.metric_card("Nilai Terendah", fn(stats[0]['min_nilai']), "🔻", "#DC3912")
+                        format_func=lambda x: st.session_state.bulan[x-1])
 
 periode_row = fetch_one("""
             SELECT id_periode
@@ -93,9 +83,16 @@ periode_row = fetch_one("""
             WHERE tahun=%s AND bulan=%s
             """, (Y, M))['id_periode']
 
-if not periode_punya_nilai(periode_row):
-    st.warning(f"Belum ada data penilaian untuk periode {bulans[M-1]} {Y}.")
+if not is_periode(periode_row):
+    st.warning(f"Belum ada data penilaian untuk periode {st.session_state.bulan[M-1]} {Y}.")
     st.stop()
+
+stats = metric_data(periode_row)
+col1, col2, col3, col4 = st.columns(4)
+col1.metric_card("Pegawai Aktif", fn(jlh_pegawai), "👥", "#3366CC")
+col2.metric_card("Rata-rata Nilai", fn(stats['avg_nilai']), "⭐", "#109618")
+col3.metric_card("Nilai Tertinggi", fn(stats['max_nilai']), "🏆", "#FF9900")
+col4.metric_card("Nilai Terendah", fn(stats['min_nilai']), "🔻", "#DC3912")
 
 colBar, colTop = st.columns([8,4], gap='small', border=True)
 
@@ -103,18 +100,16 @@ colBar, colTop = st.columns([8,4], gap='small', border=True)
 def bar_chart(periode):
     bar_df = get_bar_data(periode)
     
-    df = pd.DataFrame(bar_df, columns=["nilai"])
-    labels = ["0-50", "50-60", "61-70", "71-80", "81-90", "91-100"]
-    bins = [0, 50, 60, 70, 80, 90, 100]
-    df["range"] = pd.cut(df["nilai"], bins=bins, labels=labels)
+    BINS = [-float("inf"), 50, 60, 70, 80, 90, 100]
+    LABELS = ["< 50", "51-60", "61-70", "71-80", "81-90", "91-100"]
 
+    df = pd.DataFrame(bar_df)
     rekap_df = (
-        df["range"]
-        .value_counts()
-        .reindex(labels, fill_value=0)
-        .reset_index()
+        pd.cut(df["nilai"], bins=BINS, labels=LABELS, include_lowest=True)
+        .value_counts(sort=False)
+        .rename_axis("range")
+        .reset_index(name="jumlah")
     )
-    rekap_df.columns = ["range", "jumlah"]
 
     fig = px.bar(
         rekap_df,
@@ -128,19 +123,19 @@ def bar_chart(periode):
     fig.update_layout(
         margin=dict(t=10),
         barmode='overlay',
-        xaxis_title=f'Kumulatif Nilai per {bulans[M-1]} {Y}',
-        yaxis_title='jumlah pegawai',
+        xaxis_title=f'Kumulatif Nilai per {st.session_state.bulan[M-1]} {Y}',
+        yaxis_title='jumlah karyawan',
         showlegend=False
     )
 
-    colBar.subheader("Distribusi Nilai Pegawai")
+    colBar.subheader("Distribusi Nilai Karyawan")
     colBar.plotly_chart(fig)
 
 bar_chart(periode_row)
 
 @st.fragment
 def TOP(periode):
-    df2 = get_top5(periode)
+    df2 = get_top5_data(periode)
 
     medals = [("🥇", "#D4AF37"), 
             ("🥈", "#C0C0C0"), 
@@ -152,45 +147,41 @@ def TOP(periode):
         st.markdown("##### TOP bulanan")
         for i, data in enumerate(df2[:5]):
             icon, color = medals[i]
-            metric_card(st,f"{data['nama']}", fn(data['nilai']), f"{icon}", color)
+            metric_card(st,f"{data['nama']}", data['nilai'], f"{icon}", color)
     
         if st.session_state.role == 1:
             for i, data in enumerate(df2[5:], start=6):
-                metric_card(st,f"{data['nama']}", fn(data['nilai']), icon=f"•{i}" ,bg_color="#8b8b8b")
+                metric_card(st,f"{data['nama']}", data['nilai'], icon=f"•{i}" ,bg_color="#8b8b8b")
 
 TOP(periode_row)
 
 @st.fragment
-def line():
-    line_df = get_line_data()
-    df3 = pd.DataFrame(line_df, 
-                    columns=["id_periode", "tahun", "bulan",
-                              "disiplin", "sikap_kerja", "hasil_kerja",
-                            ]).set_index('id_periode')
+def line(tahun):
+    line_df = get_line_data(tahun)
+    df3 = pd.DataFrame(line_df).set_index('id_periode')
 
-    df3["overall"] = df3[["disiplin", "sikap_kerja", "hasil_kerja"]].mean(axis=1)
     df3 = df3.apply(pd.to_numeric, errors="coerce")
     df3["periode"] = df3["tahun"].astype(str) + "-" + df3["bulan"].astype(str).str.zfill(2)
 
     fig = px.line(df3, 
                 x='periode', 
-                y = ["disiplin","sikap_kerja","hasil_kerja",'overall'],
+                y = ["disiplin","sikap_kerja","hasil_kerja",'total'],
                 color_discrete_sequence=warna)
     fig.update_xaxes(
         dtick="M1",
         tickformat="%b %Y",
         title=""
     )
-    fig.update_yaxes(title="Nilai")
+    fig.update_yaxes(title="Nilai (%)")
     fig.update_layout(
         margin=dict(t=30),
         showlegend=True
     )
     with st.container(border=True):
-        st.subheader("Tren Kinerja Pegawai")
+        st.subheader(f"Tren Kinerja Karyawan per Aspek Utama tahun {tahun}")
         st.plotly_chart(fig, height=350)
 
-line()
+line(Y)
 
 colDetail, colHbar, = st.columns([4,6], gap='xxsmall', border=True)
 @st.fragment
@@ -200,7 +191,7 @@ def hbar(periode):
     nama_aspek = [r["nama_aspek"] for r in rows]
     nilai = [float(r["rata"]) for r in rows]
 
-    colHbar.markdown('#### **Performa Pegawai per Sub-aspek**')
+    colHbar.markdown('#### **Performa Karyawan per Sub-Aspek**')
     fig = px.bar(
         x=nilai,
         y=nama_aspek,
@@ -245,7 +236,7 @@ def t_jaspek(judul):
             unsafe_allow_html=True
         )
     
-colDetail.header("Detail Penilaian Pegawai")
+colDetail.header("Detail Penilaian Karyawan")
 
 with colDetail.expander("Disiplin [30%]"):
     aspek = fetch_all("SELECT * FROM aspek WHERE id_jaspek = 1")
