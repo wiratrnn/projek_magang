@@ -1,9 +1,6 @@
 import time
 import streamlit as st
-from utils import fetch_one, fetch_all, execute_all, sync_total
-
-def fn(x):
-    return f"{x:.2f}".rstrip("0").rstrip(".")
+from utils import *
 
 def t_jaspek(judul):
     st.markdown(
@@ -26,7 +23,7 @@ def t_jaspek(judul):
 
 @st.dialog("Verifikasi Nilai")
 def verif(total, nilai):
-    st.markdown(f'Nilai yang diperoleh oleh {st.session_state.user['nama']} sebesar **{total}**')
+    st.markdown(f'Nilai yang diperoleh oleh {st.session_state.target['nama']} sebesar **{total}**')
     col1, col2, = st.columns(2)
 
     verif_area = st.empty()
@@ -38,45 +35,45 @@ def verif(total, nilai):
 
     if confirm_verif:
         verif_area.empty() 
-        with st.status("Sedang Memproses...", state='complete'):
-            execute_all("""
+        with st.status("Sedang Memproses...", expanded=True) as status:
+            cek = execute_all("""
                     INSERT INTO nilai_aspek
                     (id_pegawai, id_penilai, id_periode, id_aspek, id_jaspek, nilai)
                     VALUES (%s, %s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE
                     nilai = VALUES(nilai)
                     """,(nilai))
-            time.sleep(0.5)
-            sync_total(st.session_state.user['id_pegawai'], st.session_state.user['id_periode'])
-            time.sleep(0.5)
-            st.session_state.pop("user", None)
-            st.toast('Berhasil Menambahkan Nilai ke Database')
             time.sleep(1)
+            if cek:
+                st.write("Berhasil Menambah nilai aspek...")
+            cek2 = sync_total(st.session_state.target['id_pegawai'], st.session_state.target['id_periode'])
+            time.sleep(1.5)
+            if cek2:
+                st.write("Berhasil Menambah nilai total...")
+            time.sleep(1.5)
+            status.update(label="Selesai!", state="complete", expanded=False)
+            time.sleep(1)
+            st.session_state.pop("target", None)
             st.rerun()
 
 if "target" not in st.session_state:
     st.session_state.target = None
 
-st.title("📋 Pemberian Skor pegawai")
+st.title("📋 Pemberian Nilai Karyawan")
 nama_pegawai = fetch_one("""
     SELECT GROUP_CONCAT(nama ORDER BY nama) AS names
     FROM pegawai
     WHERE nama <> %s
     """,(st.session_state.nama,)
 )
-bulans = ["Januari","Februari","Maret","April","Mei","Juni",
-         "Juli","Agustus","September","Oktober","November","Desember"]
 
-with st.form("Pencarian pegawai", border=False):
-    col1, col2 = st.columns(2)
-    with col1:
-        nama = st.selectbox("Nama pegawai", nama_pegawai["names"].split(","), index=None)
-        bulan = st.selectbox("Periode Penilaian", range(1, 13),
-                             format_func=lambda x: bulans[x-1])
-    with col2:
-        unit = st.selectbox("Unit Kerja", ["Umum", "Teknis", "Pengolahan"])
-        tahun = st.selectbox("Tahun Penilaian", [2022, 2023, 2024, 2025, 
-                                                2026, 2027, 2028, 2029])
+with st.form("Pencarian Karyawan", border=False):
+    col1, col2, col3 = st.columns(3)
+    nama = col1.selectbox("Nama Karyawan", nama_pegawai["names"].split(","), index=None)
+    bulan = col2.selectbox("Periode Penilaian", range(1, 13),
+                            format_func=lambda x: st.session_state.bulan[x-1])
+    tahun = col3.selectbox("Tahun Penilaian", [row["tahun"] for row in get_tahun()])
+
     if st.form_submit_button("🔍 Cari", type="primary"):
         st.session_state.target = fetch_one("""
                                         SELECT
@@ -87,8 +84,8 @@ with st.form("Pencarian pegawai", border=False):
                                                 WHERE tahun = %s AND bulan = %s
                                             ) AS id_periode
                                         FROM pegawai p
-                                        WHERE p.nama = %s AND p.unit_kerja = %s
-                                        """, (tahun, bulan, nama, unit))
+                                        WHERE p.nama = %s
+                                        """, (tahun, bulan, nama))
         
         if st.session_state.target:
             st.toast(f"berhasil {st.session_state.target['nama']}")
@@ -128,17 +125,12 @@ if st.session_state.target:
 
             id_aspek = [n['id_aspek'] for n in aspek]
             id_jaspek = [n['id_jaspek'] for n in aspek]
-            params = [( st.session_state.user['id_pegawai'],
+            params = [( st.session_state.target['id_pegawai'],
                         st.session_state.id_user,
-                        st.session_state.user['id_periode'],
-                        aspek,
-                        jaspek,
-                        n
-                        )
+                        st.session_state.target['id_periode'],
+                        aspek, jaspek, n)
                         for aspek, jaspek, n in zip(id_aspek, id_jaspek, nilai)
                         if n != 0
                         ]
 
             verif(fn(total), params)
-
-
