@@ -79,7 +79,7 @@ with col1:
 with col2:
     st.subheader(biodata['nama'])
     st.caption(f"• {biodata['jabatan']} •")
-    st.caption(f"{biodata['jabatan']}")
+    st.caption(f"{biodata['email']}")
 
 colBulan, colTahun = st.columns(2)
 Y = colTahun.selectbox("tahun periode", options=[row["tahun"] for row in get_tahun()])
